@@ -69,14 +69,16 @@ services:
 
     minio:
         image: minio/minio
+        container_name: minio
         ports:
-            - "9000:9000"
+            - "9000:9000"  # API Minio
+            - "9001:9001"  # Веб-интерфейс Minio
         environment:
-            MINIO_ACCESS_KEY: ${AWS_ACCESS_KEY_ID}
-            MINIO_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY}
+            MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}       # Обновлено на MINIO_ROOT_USER
+            MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY}  # Обновлено на MINIO_ROOT_PASSWORD
         volumes:
             - minio-data:/data
-        command: server /data
+        command: server /data --console-address ":9001"  # Добавлено для веб-интерфейса на порту 9001
         networks:
             - sail
         healthcheck:
