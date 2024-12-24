@@ -9,7 +9,3 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/upload-image', [ImageController::class, 'uploadImage']);
-
-Route::get('/test', function () {
-    return response()->json(['message' => 'API is working']);
-});
