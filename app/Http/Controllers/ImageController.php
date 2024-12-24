@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\UploadImageToS3;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class ImageController extends Controller
 {
@@ -28,25 +30,21 @@ class ImageController extends Controller
         $path = "images/{$identifier}." . $image->getClientOriginalExtension();
 
         try {
-            // Пробуем загрузить файл сразу
+            // Загрузка файла в minio
             $result = Storage::disk('s3')->put($path, file_get_contents($image));
             if (!$result) {
-                throw new \RuntimeException('Ошибка сохранения файла. Результат: false.');
+                throw new RuntimeException('Ошибка сохранения файла.');
             }
 
             $url = Storage::disk('s3')->url($path);
+
             return response()->json([
                 'identifier' => $identifier,
                 'url' => $url,
-                'result' => $result,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Если ошибка, сохраняем файл во временную директорию и ставим задачу в очередь
             $tempPath = $image->store('temp', 'local');
-
-            if (is_null($tempPath)) {
-                Log::error('Не задан путь для временного файла в ImageController', ['tempPath' => $tempPath]);
-            }
 
             UploadImageToS3::dispatch($tempPath, $path);
 

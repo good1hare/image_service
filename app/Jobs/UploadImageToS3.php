@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class UploadImageToS3 implements ShouldQueue
 {
@@ -60,18 +61,13 @@ class UploadImageToS3 implements ShouldQueue
                 return;
             }
 
-            // Загружаем файл из временной директории в S3
+            // Загружаем файл из временной директории в minio
             $content = file_get_contents(storage_path('app/private/' . $this->tempPath));
-
-            if (empty($this->path_s3)) {
-                Log::error('Путь для S3 не задан!');
-                return;
-            }
 
             $result = Storage::disk('s3')->put($this->path_s3, $content);
 
             if (!$result) {
-                throw new \RuntimeException('Ошибка сохранения файла. Результат: false.');
+                throw new RuntimeException('Ошибка сохранения файла.');
             }
 
             // Удаляем файл из временной директории после успешной загрузки
@@ -92,6 +88,7 @@ class UploadImageToS3 implements ShouldQueue
      * Обработчик для проваленных заданий.
      *
      * @param Exception $exception
+     *
      * @return void
      */
     public function failed(Exception $exception)
