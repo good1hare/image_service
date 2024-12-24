@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\UploadImageToS3;
-use Aws\S3\Exception\S3Exception;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -60,7 +58,7 @@ class ImageController extends Controller
             return response()->json([
                 'identifier' => $identifier,
                 'message' => 'Файл временно не загружен, но будет обработан позже.',
-                'path' => $tempPath
+                'path' => $tempPath,
             ], 202);
         }
     }
