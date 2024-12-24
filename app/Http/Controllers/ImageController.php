@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\UploadImageToS3;
 use Aws\S3\Exception\S3Exception;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -28,36 +29,40 @@ class ImageController extends Controller
         // Создаем путь для сохранения
         $path = "images/{$identifier}." . $image->getClientOriginalExtension();
 
-        // Сохраняем файл в MinIO
         try {
+            // Пробуем загрузить файл сразу
             $result = Storage::disk('s3')->put($path, file_get_contents($image));
             if (!$result) {
                 throw new \RuntimeException('Ошибка сохранения файла. Результат: false.');
             }
-        } catch (S3Exception $e) {
-            Log::error('S3 ошибка при сохранении файла', [
-                'error_message' => $e->getMessage(),
-                'aws_request_id' => $e->getAwsRequestId(),
-                'aws_error_code' => $e->getAwsErrorCode(),
-                'aws_error_type' => $e->getAwsErrorType(),
+
+            $url = Storage::disk('s3')->url($path);
+            return response()->json([
+                'identifier' => $identifier,
+                'url' => $url,
+                'result' => $result,
             ]);
-            return response()->json(['error' => 'Ошибка сохранения файла в S3'], 500);
         } catch (\Exception $e) {
-            Log::error('Общая ошибка при сохранении файла', [
+            // Если ошибка, сохраняем файл во временную директорию и ставим задачу в очередь
+            $tempPath = $image->store('temp', 'local');
+
+            if (is_null($tempPath)) {
+                Log::error('Не задан путь для временного файла в ImageController', ['tempPath' => $tempPath]);
+            }
+
+            UploadImageToS3::dispatch($tempPath, $path);
+
+            Log::error('Файл поставлен в очередь для загрузки в S3', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'path' => $tempPath,
             ]);
-            return response()->json(['error' => 'Общая ошибка при сохранении файла'], 500);
+
+            return response()->json([
+                'identifier' => $identifier,
+                'message' => 'Файл временно не загружен, но будет обработан позже.',
+                'path' => $tempPath
+            ], 202);
         }
-
-        // Возвращаем идентификатор и URL сохранённой картинки
-        $url = Storage::disk('s3')->url($path);
-
-        return response()->json([
-            'identifier' => $identifier,
-            'url' => $url,
-            'result' => $result
-        ]);
     }
 }
 
