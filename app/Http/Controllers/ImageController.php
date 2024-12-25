@@ -8,26 +8,34 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class ImageController extends Controller
 {
-    public function uploadImage(Request $request): JsonResponse
+    /**
+     * Загрузка изображения с клиентским id.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function uploadImage(Request $request, string $id): JsonResponse
     {
+        // Проверяем, что id передан и не пустой
+        if (empty($id)) {
+            return response()->json(['error' => 'ID не может быть пустым'], 400);
+        }
+
         // Проверяем наличие файла
         if (!$request->hasFile('image') || !$request->file('image')->isValid()) {
-            return response()->json(['error' => 'Invalid image file'], 400);
+            return response()->json(['error' => 'Некорректный файл изображения'], 400);
         }
 
         // Получаем файл
         $image = $request->file('image');
 
-        // Генерируем уникальный идентификатор
-        $identifier = Str::uuid()->toString();
-
         // Создаем путь для сохранения
-        $path = "images/{$identifier}." . $image->getClientOriginalExtension();
+        $path = "images/{$id}." . $image->getClientOriginalExtension();
 
         try {
             // Загрузка файла в minio
@@ -36,10 +44,11 @@ class ImageController extends Controller
                 throw new RuntimeException('Ошибка сохранения файла.');
             }
 
+            // Генерируем URL файла
             $url = Storage::disk('s3')->url($path);
 
             return response()->json([
-                'identifier' => $identifier,
+                'id' => $id,
                 'url' => $url,
             ]);
         } catch (Exception $e) {
@@ -54,11 +63,9 @@ class ImageController extends Controller
             ]);
 
             return response()->json([
-                'identifier' => $identifier,
+                'id' => $id,
                 'message' => 'Файл временно не загружен, но будет обработан позже.',
-                'path' => $tempPath,
             ], 202);
         }
     }
 }
-
