@@ -1,66 +1,75 @@
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## О сервисе Image Service
 
-## About Laravel
+`image_service` — это масштабируемый сервис, разработанный на Laravel, предназначенный для загрузки, хранения и обработки изображений. Он обеспечивает надёжный функционал для управления изображениями, используя хранилища S3 или совместимые с ним решения, такие как MinIO. Основные возможности:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Загрузка изображений**: Поддержка загрузки файлов с уникальными идентификаторами.
+- **Обработка очередей**: Автоматическое повторение неудачных загрузок с настраиваемыми интервалами задержки.
+- **Временное хранилище**: Сохранение изображений во временную директорию при сбоях, исключая потерю данных.
+- **API-интерфейс**: Простые и удобные конечные точки для взаимодействия с сервисом.
+- **Интеграция с MinIO/S3**: Надёжное и масштабируемое хранение объектов.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Основные возможности
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Кастомные идентификаторы**: Клиенты могут задавать собственные `id` для изображений для точного управления.
+- **Механизм повторов**: Задания, которые не выполнились, автоматически добавляются в очередь с нарастающим временем задержки.
+- **Логирование**: Полное логирование всех операций для диагностики и мониторинга.
 
-## Learning Laravel
+## Установка и настройка
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1. Клонируйте репозиторий:
+   ```bash
+   git clone https://github.com/your-repository/image_service.git
+   cd image_service
+   
+2. Установите зависимости:
+   ```bash
+   composer install
+   
+3. Настройте файл .env
+   
+4. Выполните миграции:
+   ```bash
+    php artisan migrate
+   
+5. Запустите обработку очередей:
+   ```bash
+    php artisan queue:work
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Использование API
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Загрузка изображения
 
-## Laravel Sponsors
+- **Эндпоинт**: `POST /api/upload-image/{id}`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **Параметры**:
+    - `id`: Идентификатор изображения (строка).
+    - `image`: Файл изображения (multipart/form-data).
 
-### Premium Partners
+- **Пример запроса**:
+  ```bash
+  curl -X POST http://0.0.0.0/api/upload-image/custom-id \
+       -F "image=@path/to/image.jpg"
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+- **Пример ответа**:
+   ```json
+  {
+  "identifier": "custom-id",
+  "url": "http://minio-bucket-url/path-to-image"
+  }
 
-## Contributing
+### Очередь загрузок
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+При сбое загрузки изображение временно сохраняется локально и будет автоматически отправлено в S3 или MinIO позднее через очередь заданий.  
+Система реализует механизм повторных попыток с использованием задержек. Задержки между попытками настроены следующим образом:
 
-## Code of Conduct
+- 10 секунд
+- 1 минута
+- 10 минут
+- 30 минут
+- 2 часа
+- 6 часов
+- 24 часа
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Этот механизм позволяет обеспечить надежную обработку загрузок даже при временных сбоях.
