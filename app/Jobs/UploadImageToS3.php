@@ -16,19 +16,19 @@ class UploadImageToS3 implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tempPath;
-    public $path_s3;
+    public string $tempPath;
+    public string $path_s3;
 
     /**
      * Интервалы задержек перед повторной попыткой (в секундах):
      * 10 секунд, 1 минута, 10 минут, 30 минут, 2 часа, 6 часов, 24 часа.
      */
-    public $backoff = [10, 60, 600, 1800, 7200, 21600, 86400];
+    public array $backoff = [10, 60, 600, 1800, 7200, 21600, 86400];
 
     /**
      * Максимальное количество попыток.
      */
-    public $tries = 7;
+    public int $tries = 7;
 
     /**
      * Create a new job instance.
@@ -48,14 +48,9 @@ class UploadImageToS3 implements ShouldQueue
      * @return void
      * @throws Exception
      */
-    public function handle()
+    public function handle(): void
     {
         try {
-            if (is_null($this->tempPath)) {
-                Log::error('Не задан путь для временного файла', ['tempPath' => $this->tempPath]);
-                return;
-            }
-
             if (!Storage::disk('local')->exists($this->tempPath)) {
                 Log::error('Файл не существует в локальном хранилище', ['path' => $this->tempPath]);
                 return;
@@ -91,7 +86,7 @@ class UploadImageToS3 implements ShouldQueue
      *
      * @return void
      */
-    public function failed(Exception $exception)
+    public function failed(Exception $exception): void
     {
         Log::error('Задание провалено', ['message' => $exception->getMessage()]);
     }
